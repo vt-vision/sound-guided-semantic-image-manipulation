@@ -7,6 +7,7 @@ import youtube_dl
 import os
 import librosa
 from pydub import AudioSegment
+from moviepy.editor import VideoFileClip
 
 def trim_audio_data(audio_file, save_file, start):
     sr = 44100
@@ -17,12 +18,7 @@ def trim_audio_data(audio_file, save_file, start):
     librosa.write_wav(save_file + '.wav', ny, sr)
 
 ydl_opts = {
-    'format': 'bestaudio/best',
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '320',
-    }],
+    'format': 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=1440]',
 }
 
 # vggsound.csv : https://www.robots.ox.ac.uk/~vgg/data/vggsound/
@@ -33,26 +29,34 @@ slink = "https://www.youtube.com/watch?v="
 sumofError = 0
 cnt = 0
 
-os.makedirs("./vggsound", exist_ok=True)
+os.makedirs("/storage/vggsound/audio", exist_ok=True)
+os.makedirs("/storage/vggsound/video", exist_ok=True)
 
 for idx, row in tqdm(enumerate(vgg.iterrows())):
-    try:
-        _, row = row 
-        url, sttime, label, split = row["YouTube ID"], row["start seconds"], row["label"], row["train/test split"] 
-        endtime = int(sttime) + 10 
+    if idx < 82680:
+        continue
+    _, row = row 
+    url, sttime, label, split = row["YouTube ID"], row["start seconds"], row["label"], row["train/test split"] 
+    endtime = int(sttime) + 10 
             
+    try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([slink + url])
-
-        # Save 10 sec Wav File with Text Prompt
-        path = glob("*.mp3")[0]
-        sound = AudioSegment.from_mp3(path)
-        sound = sound[int(sttime) * 1000:int(endtime) * 1000]
-        sound.export("./vggsound/"+label+str("_")+str(idx)+".wav", format="wav")
-        os.remove(path)
-
     except:
         sumofError += 1
         continue
+
+    # Save 10 sec Wav File with Text Prompt
+    path = glob("*.mp4")[0]
+
+    video = VideoFileClip(path)
+    clip = video.subclip(int(sttime), min(int(endtime), video.end))
+    clip.write_videofile("/storage/vggsound/video/"+str(idx)+str("_")+label+".mp4")
+    sound = AudioSegment.from_file(path, "mp4")
+    sound = sound[int(sttime) * 1000:int(endtime) * 1000]
+    sound.export("/storage/vggsound/audio/"+str(idx)+str("_")+label+".mp3")
+
+    os.remove(path)
+
     
 print(sumofError , "The number of error cases")
