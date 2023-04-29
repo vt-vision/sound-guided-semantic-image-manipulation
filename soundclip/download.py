@@ -29,11 +29,12 @@ slink = "https://www.youtube.com/watch?v="
 sumofError = 0
 cnt = 0
 
-os.makedirs("/storage/vggsound/audio", exist_ok=True)
-os.makedirs("/storage/vggsound/video", exist_ok=True)
+os.makedirs("/storage/vggsound-new/audio", exist_ok=True)
+os.makedirs("/storage/vggsound-new/video", exist_ok=True)
+os.makedirs("/storage/vggsound-new/image", exist_ok=True)
 
 for idx, row in tqdm(enumerate(vgg.iterrows())):
-    if idx < 82680:
+    if idx < 21677:
         continue
     _, row = row 
     url, sttime, label, split = row["YouTube ID"], row["start seconds"], row["label"], row["train/test split"] 
@@ -42,21 +43,24 @@ for idx, row in tqdm(enumerate(vgg.iterrows())):
     try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([slink + url])
+
+        # Save 10 sec Wav File with Text Prompt
+        path = glob("*.mp4")[0]
+
+        video = VideoFileClip(path)
+        clip = video.subclip(int(sttime), min(int(endtime), video.end))
+        clip.write_videofile("/storage/vggsound-new/video/"+str(idx)+str("_")+label+".mp4")
+        clip.audio.write_audiofile("/storage/vggsound-new/audio/"+str(idx)+str("_")+label+".mp3")
+        clip.save_frame("/storage/vggsound-new/image/"+str(idx)+str("_")+label+".png", t=7)
+        #sound = AudioSegment.from_file(path, "mp4")
+        #sound = sound[int(sttime) * 1000:int(endtime) * 1000]
+        #sound.export("/storage/vggsound/audio/"+str(idx)+str("_")+label+".mp3")
+
+        os.remove(path)
+    
     except:
         sumofError += 1
         continue
-
-    # Save 10 sec Wav File with Text Prompt
-    path = glob("*.mp4")[0]
-
-    video = VideoFileClip(path)
-    clip = video.subclip(int(sttime), min(int(endtime), video.end))
-    clip.write_videofile("/storage/vggsound/video/"+str(idx)+str("_")+label+".mp4")
-    sound = AudioSegment.from_file(path, "mp4")
-    sound = sound[int(sttime) * 1000:int(endtime) * 1000]
-    sound.export("/storage/vggsound/audio/"+str(idx)+str("_")+label+".mp3")
-
-    os.remove(path)
 
     
 print(sumofError , "The number of error cases")
